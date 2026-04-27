@@ -71,7 +71,7 @@
         // 2. Initialize Audio Sonar
         async function initAudio() {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-			const contraints = {
+			const constraints = {
 				audio: {
 					echoCancellation: false,
 					noiseSuppression: false,
