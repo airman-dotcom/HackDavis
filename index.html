@@ -3,93 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acoustic CPR Sonar</title>
+    <title>2D Acoustic CPR</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #050505; font-family: sans-serif; }
-        #ui {
-            position: absolute; top: 20px; left: 20px; z-index: 10;
-            color: #00ffcc; pointer-events: none;
-        }
+        body { margin: 0; background: #111; color: #00ffcc; font-family: 'Courier New', Courier, monospace; overflow: hidden;}
+        #ui { position: absolute; top: 15px; left: 15px; z-index: 10; pointer-events: none; text-shadow: 0 0 5px #00ffcc;}
+        #status { font-weight: bold;}
+        
         button {
-            position: absolute; bottom: 30px; left: 50%;
-            transform: translateX(-50%); padding: 15px 30px;
-            font-size: 18px; background: #00ffcc; border: none;
-            border-radius: 30px; cursor: pointer; font-weight: bold;
-            pointer-events: auto; box-shadow: 0 0 20px rgba(0,255,204,0.5);
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); padding: 20px 40px;
+            font-size: 20px; background: #00ffcc; border: none;
+            border-radius: 10px; cursor: pointer; font-weight: bold;
+            box-shadow: 0 0 30px rgba(0,255,204,0.6);
+            z-index: 20;
+        }
+
+        canvas {
+            display: block; width: 100vw; height: 100vh;
         }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <h2>CPR Acoustic Sonar</h2>
-        <p>Status: <span id="status">Waiting for user...</span></p>
-        <p>Frequency: 20,000Hz (Ultrasonic)</p>
+        <h2>2D Sonar</h2>
+        <p>Status: <span id="status">Ready</span></p>
+        <p>Frequency: 18,000Hz</p>
     </div>
 
     <button id="startBtn">START SONAR</button>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <canvas id="sonarCanvas"></canvas>
 
     <script>
         let audioCtx, analyser, dataArray, source, oscillator;
-        let scene, camera, renderer, points, positions;
-        const PARTICLE_COUNT = 2500;
+        let canvas, ctx;
+        const TARGET_FREQ = 18000;
 
-        // 1. Initialize 3D Scene
-        function initThree() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 5;
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-
-            const geometry = new THREE.BufferGeometry();
-            positions = new Float32Array(PARTICLE_COUNT * 3);
-            
-            // Layout particles in a grid
-            for (let i = 0; i < PARTICLE_COUNT; i++) {
-                positions[i*3] = ((i % 50) - 25) * 0.15;      // X
-                positions[i*3+1] = (Math.floor(i / 50) - 25) * 0.15; // Y
-                positions[i*3+2] = 0;                          // Z (Depth)
-            }
-
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const material = new THREE.PointsMaterial({ 
-                size: 0.04, 
-                color: 0x00ffcc,
-                transparent: true,
-                opacity: 0.8
-            });
-
-            points = new THREE.Points(geometry, material);
-            scene.add(points);
+        function initCanvas() {
+            canvas = document.getElementById('sonarCanvas');
+            ctx = canvas.getContext('2d');
+            // Make canvas full resolution
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         }
 
-        // 2. Initialize Audio Sonar
         async function initAudio() {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-			const constraints = {
-				audio: {
-					echoCancellation: false,
-					noiseSuppression: false,
-					autoGainControl: false
-				}
-			}
-            analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 1024;
-            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            
+            // Disable processing for raw sonar data
+            const constraints = {
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false
+                }
+            };
 
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 1024; // Lower FFT is faster for 2D draw
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+
             source = audioCtx.createMediaStreamSource(stream);
             source.connect(analyser);
 
-            // Create the "Pinger"
             oscillator = audioCtx.createOscillator();
             oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(19000, audioCtx.currentTime); // 19kHz for better mic response
+            oscillator.frequency.setValueAtTime(TARGET_FREQ, audioCtx.currentTime);
             oscillator.connect(audioCtx.destination);
             oscillator.start();
 
@@ -97,45 +78,88 @@
             animate();
         }
 
-        // 3. Animation Loop (Update 3D based on sound)
         function animate() {
             requestAnimationFrame(animate);
             analyser.getByteFrequencyData(dataArray);
-			const targetBin = Math.floor((19000 / (audioCtx.sampleRate / 2)) * analyser.frequencyBinCount);
-            const posAttribute = points.geometry.attributes.position;
-            
-            for (let i = 0; i < PARTICLE_COUNT; i++) {
-				// We look at bins RIGHT NEXT to our target frequency. 
-				// Movement causes the sound to "bleed" into neighboring bins (Doppler).
-				let offset = (i % 10) - 5; 
-				let intensity = dataArray[targetBin + offset] / 255;
 
-				if (intensity > 0.1) {
-					posAttribute.array[i * 3 + 2] = intensity * 5; // Move Z-axis
-				} else {
-					posAttribute.array[i * 3 + 2] *= 0.9; // Smooth decay
-				}
-			}
-            posAttribute.needsUpdate = true;
-            points.rotation.y += 0.002; // Slow rotation for effect
-            renderer.render(scene, camera);
+            // Find our specific target bin
+            const targetBin = Math.floor((TARGET_FREQ / (audioCtx.sampleRate / 2)) * analyser.frequencyBinCount);
+            
+            // Look at a narrow window around the target
+            const windowSize = 20;
+            const startBin = targetBin - (windowSize / 2);
+
+            // Calculate the overall movement intensity
+            let movementIntensity = 0;
+            for(let i=0; i < windowSize; i++) {
+                // If there's movement, sound bleeds into bins outside target
+                if (Math.abs(i - windowSize/2) > 1) { 
+                    movementIntensity += dataArray[startBin + i];
+                }
+            }
+            
+            // Normalize intensity to 0-1 range
+            let normIntensity = movementIntensity / (windowSize * 150); 
+            
+            // DRAWING 2D
+            drawVisual(normIntensity);
         }
 
-        // Start Event
+        let history = [];
+        const HISTORY_LIMIT = 200;
+
+        function drawVisual(intensity) {
+            // Fill background with semi-transparent black for trails
+            ctx.fillStyle = 'rgba(17, 17, 17, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Add intensity to our time-series history
+            history.push(intensity);
+            if (history.length > HISTORY_LIMIT) history.shift();
+
+            // Draw the "Pulse Graph" (intensity over time)
+            ctx.beginPath();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#00ffcc';
+            ctx.lineJoin = 'round';
+
+            for (let i = 0; i < history.length; i++) {
+                // X maps to time (older data left, newer right)
+                let x = (i / HISTORY_LIMIT) * canvas.width;
+                // Y maps to intensity (intensity 1 = top, 0 = middle)
+                let y = (canvas.height / 2) - (history[i] * (canvas.height / 2));
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+
+            // Draw a horizontal baseline
+            ctx.beginPath();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(0, 255, 204, 0.2)';
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+        }
+
         document.getElementById('startBtn').addEventListener('click', () => {
             document.getElementById('startBtn').style.display = 'none';
-            initThree();
+            initCanvas();
             initAudio().catch(err => {
-                alert("Microphone access denied or not supported.");
+                document.getElementById('status').innerText = "Error: " + err.message;
                 console.error(err);
             });
         });
 
-        // Handle Resizing
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            if(canvas) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
         });
     </script>
 </body>
