@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		    <meta charset="UTF-8">
+		        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+			    <title>Acoustic CPR Sonar</title>
+			        <style>
+        body { margin: 0; overflow: hidden; background: #050505; font-family: sans-serif; }
+	        #ui {
+			            position: absolute; top: 20px; left: 20px; z-index: 10;
+				                color: #00ffcc; pointer-events: none;
+						        }
+		        button {
+				            position: absolute; bottom: 30px; left: 50%;
+					                transform: translateX(-50%); padding: 15px 30px;
+							            font-size: 18px; background: #00ffcc; border: none;
+								                border-radius: 30px; cursor: pointer; font-weight: bold;
+										            pointer-events: auto; box-shadow: 0 0 20px rgba(0,255,204,0.5);
+											            }
+			    </style>
+	</head>
+	<body>
+
+		    <div id="ui">
+			            <h2>CPR Acoustic Sonar</h2>
+				            <p>Status: <span id="status">Waiting for user...</span></p>
+					            <p>Frequency: 20,000Hz (Ultrasonic)</p>
+						        </div>
+
+							    <button id="startBtn">START SONAR</button>
+
+							        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+								    <script>
+									            let audioCtx, analyser, dataArray, source, oscillator;
+									            let scene, camera, renderer, points, positions;
+									            const PARTICLE_COUNT = 2500;
+
+									            // 1. Initialize 3D Scene
+									            function initThree() {
+																					            scene = new THREE.Scene();
+																					            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+																					            camera.position.z = 5;
+
+																					            renderer = new THREE.WebGLRenderer({ antialias: true });
+																					            renderer.setSize(window.innerWidth, window.innerHeight);
+																					            document.body.appendChild(renderer.domElement);
+
+																					            const geometry = new THREE.BufferGeometry();
+																					            positions = new Float32Array(PARTICLE_COUNT * 3);
+																					            
+																					            // Layout particles in a grid
+																					            for (let i = 0; i < PARTICLE_COUNT; i++) {
+																																	                positions[i*3] = ((i % 50) - 25) * 0.15;      // X
+																																	                positions[i*3+1] = (Math.floor(i / 50) - 25) * 0.15; // Y
+																																	                positions[i*3+2] = 0;                          // Z (Depth)
+																																	            }
+
+																					            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+																					            const material = new THREE.PointsMaterial({ 
+																																	                size: 0.04, 
+																																	                color: 0x00ffcc,
+																																	                transparent: true,
+																																	                opacity: 0.8
+																																	            });
+
+																					            points = new THREE.Points(geometry, material);
+																					            scene.add(points);
+																					        }
+
+									            // 2. Initialize Audio Sonar
+									            async function initAudio() {
+																					            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+																					            analyser = audioCtx.createAnalyser();
+																					            analyser.fftSize = 1024;
+																					            dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+																					            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+																					            source = audioCtx.createMediaStreamSource(stream);
+																					            source.connect(analyser);
+
+																					            // Create the "Pinger"
+																					            oscillator = audioCtx.createOscillator();
+																					            oscillator.type = 'sine';
+																					            oscillator.frequency.setValueAtTime(19000, audioCtx.currentTime); // 19kHz for better mic response
+																					            oscillator.connect(audioCtx.destination);
+																					            oscillator.start();
+
+																					            document.getElementById('status').innerText = "SONAR ACTIVE";
+																					            animate();
+																					        }
+
+									            // 3. Animation Loop (Update 3D based on sound)
+									            function animate() {
+																					            requestAnimationFrame(animate);
+																					            analyser.getByteFrequencyData(dataArray);
+
+																					            const posAttribute = points.geometry.attributes.position;
+																					            
+																					            for (let i = 0; i < PARTICLE_COUNT; i++) {
+																																	                // Map the frequency data to the Z-axis (Depth)
+																																	                // We focus on the high-frequency bins (the end of the array)
+																																	                let freqIndex = Math.floor((i / PARTICLE_COUNT) * 100) + (dataArray.length - 120);
+																																	                let intensity = dataArray[freqIndex] / 255;
+
+																																	                // Update Z-axis based on acoustic intensity
+																																	                // This creates the "3D" displacement effect
+																																	                posAttribute.array[i * 3 + 2] = intensity * 4; 
+																																	            }
+
+																					            posAttribute.needsUpdate = true;
+																					            points.rotation.y += 0.002; // Slow rotation for effect
+																					            renderer.render(scene, camera);
+																					        }
+
+									            // Start Event
+									            document.getElementById('startBtn').addEventListener('click', () => {
+																					            document.getElementById('startBtn').style.display = 'none';
+																					            initThree();
+																					            initAudio().catch(err => {
+																																	                alert("Microphone access denied or not supported.");
+																																	                console.error(err);
+																																	            });
+																					        });
+
+									            // Handle Resizing
+									            window.addEventListener('resize', () => {
+																					            camera.aspect = window.innerWidth / window.innerHeight;
+																					            camera.updateProjectionMatrix();
+																					            renderer.setSize(window.innerWidth, window.innerHeight);
+																					        });
+									        </script>
+	</body>
+</html>
