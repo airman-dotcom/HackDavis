@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 
+final response = await http.get(Uri.parse('/'));
+
 void main() => runApp(const MaterialApp(home: AuthPage()));
 
 class AuthPage extends StatefulWidget {
@@ -49,4 +51,3 @@ class _AuthPageState extends State<AuthPage> {
 }
 //hi
 
-final response = await http.get(Uri.parse('/api/hello'));
