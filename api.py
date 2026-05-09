@@ -26,6 +26,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+def hello():
+    return {"message": "Hello from FastAPI on Netlify!"}
+
 @app.post("/signup")
 async def signup(user: models.UserSignup):
     # Check if user exists
