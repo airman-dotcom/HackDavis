@@ -1,14 +1,11 @@
 [build]
-  command = "pip install -r requirements.txt"
-  publish = "."
+  publish = "build/web"
+  command = "flutter build web --release"
 
 [functions]
-  # This tells Netlify explicitly to look for Python files in the root
-  directory = "."
-  included_files = ["*.py"]
+  directory = "netlify/functions"
 
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
-  force = true

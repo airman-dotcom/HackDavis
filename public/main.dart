@@ -1,53 +1,48 @@
 import 'package:flutter/material.dart';
-import 'api_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-final response = await http.get(Uri.parse('/'));
+void main() => runApp(const MaterialApp(home: NetlifyTest()));
 
-void main() => runApp(const MaterialApp(home: AuthPage()));
+class NetlifyTest extends StatefulWidget {
+  const NetlifyTest({super.key});
 
-class AuthPage extends StatefulWidget {
-  const AuthPage({super.key});
   @override
-  State<AuthPage> createState() => _AuthPageState();
+  State<NetlifyTest> createState() => _NetlifyTestState();
 }
 
-class _AuthPageState extends State<AuthPage> {
-  final TextEditingController _userController = TextEditingController();
-  final TextEditingController _passController = TextEditingController();
-  final ApiService _api = ApiService();
+class _NetlifyTestState extends State<NetlifyTest> {
+  String _message = "Press the button to test API";
 
-  void _showMsg(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  Future<void> _callApi() async {
+    try {
+      // Relative path works because of netlify.toml redirects
+      final response = await http.get(Uri.parse('/api/hello'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() => _message = data['message']);
+      } else {
+        setState(() => _message = "Error: ${response.statusCode}");
+      }
+    } catch (e) {
+      setState(() => _message = "Connection failed: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Mongo Auth")),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      appBar: AppBar(title: const Text("Netlify + FastAPI")),
+      body: Center(
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            TextField(controller: _userController, decoration: const InputDecoration(labelText: "Username")),
-            TextField(controller: _passController, decoration: const InputDecoration(labelText: "Password"), obscureText: true),
+            Text(_message, style: const TextStyle(fontSize: 18)),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                var res = await _api.login(_userController.text, _passController.text);
-                _showMsg(res['status'] == 'success' ? "Logged in as ${res['username']}" : res['detail']);
-              }, 
-              child: const Text("Login")
-            ),
-            TextButton(
-              onPressed: () async {
-                var res = await _api.signup(_userController.text, "${_userController.text}@mail.com", _passController.text);
-                _showMsg(res['message'] ?? res['detail']);
-              }, 
-              child: const Text("Create Account")
-            ),
+            ElevatedButton(onPressed: _callApi, child: const Text("Test API")),
           ],
         ),
       ),
     );
   }
 }
-//hi
-
