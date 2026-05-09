@@ -4,4 +4,4 @@ motor
 pydantic[email]
 passlib[bcrypt]
 mangum
-http
+
