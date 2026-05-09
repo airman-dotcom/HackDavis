@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import models, auth_utils, database
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
+from mangum import Mangum
 uri = os.environ.get('MONGODB_URI')
 
 # Create a new client and connect to the server
@@ -53,3 +54,5 @@ async def login(user: models.UserLogin):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+handler = Mangum(app)
