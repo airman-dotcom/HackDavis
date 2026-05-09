@@ -1,5 +1,5 @@
 [build]
-  publish = "build/web"
+  publish = "build/web" # Where Flutter outputs the web build
   command = "flutter build web --release"
 
 [functions]

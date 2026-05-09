@@ -1,1 +1,24 @@
-flutter
+# Specific folder you asked to ignore
+flutter/
+
+# Flutter/Dart specific
+build/
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+*.precompiled.js
+
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Netlify specific
+.netlify/
+
+# OS specific
+.DS_Store
+Thumbs.db
