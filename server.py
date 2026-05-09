@@ -14,7 +14,7 @@ try:
     print("Pinged your deployment. You successfully connected to MongoDB!")
 except Exception as e:
     print(e)
-
+#hi
 app = FastAPI()
 
 # Allows Flutter (web or mobile) to communicate with this server
