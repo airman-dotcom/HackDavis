@@ -48,3 +48,5 @@ class _AuthPageState extends State<AuthPage> {
   }
 }
 //hi
+
+final response = await http.get(Uri.parse('/api/hello'));
