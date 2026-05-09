@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   // Use 10.0.2.2 for Android Emulator, localhost for iOS simulator
-  static const String baseUrl = "http://10.0.2.2:8000";
+  static const String baseUrl = "https://adaffodil.netlify.app/";
 
   Future<Map<String, dynamic>> signup(String user, String email, String pass) async {
     final response = await http.post(
